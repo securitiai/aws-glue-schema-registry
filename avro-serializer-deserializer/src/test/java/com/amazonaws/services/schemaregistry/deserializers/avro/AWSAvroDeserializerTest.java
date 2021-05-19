@@ -624,6 +624,11 @@ public class AWSAvroDeserializerTest {
         when(awsAvroDeserializerMock.deserialize(Mockito.any(UUID.class), Mockito.any(ByteBuffer.class),
                 Mockito.anyString())).thenCallRealMethod();
 
+        try {
+            when(awsAvroDeserializerMock.getDeserializedData(Mockito.any(ByteBuffer.class))).thenCallRealMethod();
+        } catch (Exception e) {
+            fail("Test failed with exception", e);
+        }
 
         GlueSchemaRegistryConfiguration config = mock(GlueSchemaRegistryConfiguration.class);
         awsAvroDeserializerMock.setSchemaRegistrySerDeConfigs(config);
@@ -653,6 +658,12 @@ public class AWSAvroDeserializerTest {
         AWSAvroDeserializer awsAvroDeserializerMock = mock(AWSAvroDeserializer.class);
         when(awsAvroDeserializerMock.deserialize(Mockito.any(UUID.class), Mockito.any(ByteBuffer.class),
                 Mockito.anyString())).thenCallRealMethod();
+
+        try {
+            when(awsAvroDeserializerMock.getDeserializedData(Mockito.any(ByteBuffer.class))).thenCallRealMethod();
+        } catch (Exception e) {
+            fail("Test failed with exception", e);
+        }
 
         GlueSchemaRegistryConfiguration config = mock(GlueSchemaRegistryConfiguration.class);
         when(config.getCompressionType()).thenReturn(AWSSchemaRegistryConstants.COMPRESSION.NONE);

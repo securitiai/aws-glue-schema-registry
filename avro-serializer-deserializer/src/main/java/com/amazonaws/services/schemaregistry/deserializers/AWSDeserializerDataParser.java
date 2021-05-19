@@ -64,20 +64,19 @@ public final class AWSDeserializerDataParser {
      *                                      schema registry
      */
     public UUID getSchemaVersionId(ByteBuffer byteBuffer) {
-        byteBuffer.rewind();
-        // Ensure that we are not changing the buffer position.
-        ByteBuffer slicedBuffer = byteBuffer.slice();
-
         //Make sure we have valid byteBuffer.
-        validateData(slicedBuffer);
+        validateData(byteBuffer);
 
+        // Ensure that we rewind to the start to avoid side-effects on byteBuffer
+        // instance
+        byteBuffer.rewind();
         // Skip HEADER_VERSION_BYTE
-        slicedBuffer.get();
+        byteBuffer.get();
         // Skip COMPRESSION_BYTE
-        slicedBuffer.get();
+        byteBuffer.get();
 
-        long mostSigBits = slicedBuffer.getLong();
-        long leastSigBits = slicedBuffer.getLong();
+        long mostSigBits = byteBuffer.getLong();
+        long leastSigBits = byteBuffer.getLong();
 
         return new UUID(mostSigBits, leastSigBits);
     }
@@ -91,20 +90,20 @@ public final class AWSDeserializerDataParser {
      * @return true - validation success; false - otherwise
      */
     public boolean isDataCompatible(ByteBuffer byteBuffer, StringBuilder errorBuilder) {
-        // Ensure that we are not changing the buffer position.
+        // Ensure that we rewind to the start to avoid side-effects on byteBuffer
+        // instance
         byteBuffer.rewind();
-        ByteBuffer toValidate = byteBuffer.slice();
 
         // We should be at least 18 bytes long
-        if (toValidate.limit() < 18) {
+        if (byteBuffer.limit() < 18) {
             String message = String.format("%s size: %d", AWSIncompatibleDataException.UNKNOWN_DATA_ERROR_MESSAGE,
-                toValidate.limit());
+                    byteBuffer.limit());
             errorBuilder.append(message);
             log.debug(message);
             return false;
         }
 
-        Byte headerVersionByte = toValidate.get();
+        Byte headerVersionByte = byteBuffer.get();
         if (!headerVersionByte.equals(AWSSchemaRegistryConstants.HEADER_VERSION_BYTE)) {
             String message = AWSIncompatibleDataException.UNKNOWN_HEADER_VERSION_BYTE_ERROR_MESSAGE;
             errorBuilder.append(message);
@@ -112,9 +111,9 @@ public final class AWSDeserializerDataParser {
             return false;
         }
 
-        Byte compressionByte = toValidate.get();
+        Byte compressionByte = byteBuffer.get();
         if (!compressionByte.equals(AWSSchemaRegistryConstants.COMPRESSION_BYTE)
-            && !compressionByte.equals(AWSSchemaRegistryConstants.COMPRESSION_DEFAULT_BYTE)) {
+                && !compressionByte.equals(AWSSchemaRegistryConstants.COMPRESSION_DEFAULT_BYTE)) {
             String message = AWSIncompatibleDataException.UNKNOWN_COMPRESSION_BYTE_ERROR_MESSAGE;
             errorBuilder.append(message);
             log.debug(message);
@@ -125,27 +124,27 @@ public final class AWSDeserializerDataParser {
     }
 
     public byte[] getPlainData(ByteBuffer byteBuffer) {
-        byteBuffer.rewind();
-        ByteBuffer slicedBuffer = byteBuffer.slice();
-
         //Make sure we have the right bytebuffer.
-        validateData(slicedBuffer);
+        validateData(byteBuffer);
+
+        //Rewind for fresh start on seeking the data.
+        byteBuffer.rewind();
 
         //Seek header byte
-        slicedBuffer.get();
+        byteBuffer.get();
 
         //Seek compression byte.
-        Byte compressionByte = slicedBuffer.get();
+        Byte compressionByte = byteBuffer.get();
 
         //Seek SchemaVersionId bytes
         //Most significant
-        slicedBuffer.getLong();
+        byteBuffer.getLong();
         //Least significant
-        slicedBuffer.getLong();
+        byteBuffer.getLong();
 
         //Get the actual data.
-        byte[] plainData = new byte[slicedBuffer.remaining()];
-        slicedBuffer.get(plainData);
+        byte[] plainData = new byte[byteBuffer.remaining()];
+        byteBuffer.get(plainData);
 
         boolean isCompressionEnabled = isCompressionByteSet(compressionByte);
 
@@ -155,8 +154,8 @@ public final class AWSDeserializerDataParser {
 
         //Decompress the data and return.
         int dataStart = getSchemaRegistryHeaderLength();
-        int dataEnd = slicedBuffer.limit() - dataStart;
-        return decompressData(compressionByte, slicedBuffer, dataStart, dataEnd);
+        int dataEnd = byteBuffer.limit() - dataStart;
+        return decompressData(compressionByte, byteBuffer, dataStart, dataEnd);
     }
 
     @SneakyThrows
@@ -186,11 +185,9 @@ public final class AWSDeserializerDataParser {
      */
     public boolean isCompressionEnabled(ByteBuffer byteBuffer) {
         byteBuffer.rewind();
-        ByteBuffer slicedBuffer = byteBuffer.slice();
-
         // skip the first byte.
-        slicedBuffer.get();
-        Byte compressionByte = slicedBuffer.get();
+        byteBuffer.get();
+        Byte compressionByte = byteBuffer.get();
         return isCompressionByteSet(compressionByte);
     }
 
@@ -206,10 +203,9 @@ public final class AWSDeserializerDataParser {
      */
     public Byte getCompressionByte(ByteBuffer byteBuffer) {
         byteBuffer.rewind();
-        ByteBuffer slicedBuffer = byteBuffer.slice();
         // skip the first byte.
-        slicedBuffer.get();
-        return slicedBuffer.get();
+        byteBuffer.get();
+        return byteBuffer.get();
     }
 
     /**
@@ -220,9 +216,7 @@ public final class AWSDeserializerDataParser {
      */
     public Byte getHeaderVersionByte(ByteBuffer byteBuffer) {
         byteBuffer.rewind();
-        ByteBuffer slicedBuffer = byteBuffer.slice();
-
-        return slicedBuffer.get();
+        return byteBuffer.get();
     }
 
     private int getSchemaRegistryHeaderLength() {
