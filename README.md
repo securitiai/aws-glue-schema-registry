@@ -60,7 +60,7 @@ The recommended way to use the AWS Glue Schema Registry Library for Java is to c
   <dependency>
       <groupId>software.amazon.glue</groupId>
       <artifactId>schema-registry-serde</artifactId>
-      <version>1.1.19</version>
+      <version>1.1.19-1p</version>
   </dependency>
   ```
 ### Code Example
@@ -549,7 +549,7 @@ It should look like this
   <dependency>
         <groupId>software.amazon.glue</groupId>
         <artifactId>schema-registry-kafkastreams-serde</artifactId>
-        <version>1.1.19</version>
+        <version>1.1.19-1p</version>
   </dependency>
   ```
 
@@ -587,7 +587,7 @@ repository for the latest support: [Avro SerializationSchema and Deserialization
   <dependency>
        <groupId>software.amazon.glue</groupId>
        <artifactId>schema-registry-flink-serde</artifactId>
-       <version>1.1.19</version>
+       <version>1.1.19-1p</version>
   </dependency>
   ```
 ### Code Example
