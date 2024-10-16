@@ -21,7 +21,7 @@
 
     <groupId>software.amazon.glue</groupId>
     <artifactId>schema-registry-parent</artifactId>
-    <version>1.1.19-1p</version>
+    <version>1.1.21-1p</version>
     <packaging>pom</packaging>
     <name>AWS Glue Schema Registry Library</name>
     <description>The AWS Glue Schema Registry Library for Java enables Java developers to easily integrate their
@@ -84,11 +84,10 @@
         <aws.sdk.v1.version>1.12.660</aws.sdk.v1.version>
         <kafka.scala.version>2.12</kafka.scala.version>
         <kafka.version>3.6.1</kafka.version>
-        <avro.version>1.11.3</avro.version>
+        <avro.version>1.11.4</avro.version>
         <mbknor.jsonschema.converter.version>1.0.39</mbknor.jsonschema.converter.version>
         <everit.json.schema.version>1.14.2</everit.json.schema.version>
         <classgraph.version>4.8.120</classgraph.version>
-        <commons.compress.version>1.26.0</commons.compress.version>
         <commons.lang.version>3.8.1</commons.lang.version>
         <jackson.version>2.15.4</jackson.version>
         <!-- Protobuf -->
@@ -168,12 +167,18 @@
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro</artifactId>
                 <version>${avro.version}</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                  </exclusion>
+               </exclusions>
             </dependency>
-            <!-- Temporarily adding dependency on a transitive dependency to fix security bug in underlying library. Remove when dependency is upgraded. -->
+            <!-- Exclude commons-compress globally due to vulns -->
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
-                <version>${commons.compress.version}</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.avro</groupId>
