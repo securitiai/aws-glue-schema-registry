@@ -60,7 +60,7 @@ The recommended way to use the AWS Glue Schema Registry Library for Java is to c
   <dependency>
       <groupId>software.amazon.glue</groupId>
       <artifactId>schema-registry-serde</artifactId>
-      <version>1.1.24</version>
+      <version>1.1.25</version>
   </dependency>
   ```
 ### Code Example
@@ -490,7 +490,7 @@ It should look like this
 * If using bash, run the below commands to set-up your CLASSPATH in your bash_profile. (For any other shell, update the environment accordingly.)
   ```bash
       echo 'export GSR_LIB_BASE_DIR=<>' >>~/.bash_profile
-      echo 'export GSR_LIB_VERSION=1.1.24' >>~/.bash_profile
+      echo 'export GSR_LIB_VERSION=1.1.25' >>~/.bash_profile
       echo 'export KAFKA_HOME=<your kafka installation directory>' >>~/.bash_profile
       echo 'export CLASSPATH=$CLASSPATH:$GSR_LIB_BASE_DIR/avro-kafkaconnect-converter/target/schema-registry-kafkaconnect-converter-$GSR_LIB_VERSION.jar:$GSR_LIB_BASE_DIR/common/target/schema-registry-common-$GSR_LIB_VERSION.jar:$GSR_LIB_BASE_DIR/avro-serializer-deserializer/target/schema-registry-serde-$GSR_LIB_VERSION.jar' >>~/.bash_profile
       source ~/.bash_profile
@@ -549,7 +549,7 @@ It should look like this
   <dependency>
         <groupId>software.amazon.glue</groupId>
         <artifactId>schema-registry-kafkastreams-serde</artifactId>
-        <version>1.1.24</version>
+        <version>1.1.25</version>
   </dependency>
   ```
 
@@ -587,7 +587,7 @@ repository for the latest support: [Avro SerializationSchema and Deserialization
   <dependency>
        <groupId>software.amazon.glue</groupId>
        <artifactId>schema-registry-flink-serde</artifactId>
-       <version>1.1.24</version>
+       <version>1.1.25</version>
   </dependency>
   ```
 ### Code Example
@@ -634,6 +634,30 @@ repository for the latest support: [Avro SerializationSchema and Deserialization
             GlueSchemaRegistryAvroDeserializationSchema.forGeneric(schema, configs),
             properties);
     DataStream<GenericRecord> stream = env.addSource(consumer);
+```
+
+## Cross-Account Avro Converter Support
+
+The `AWSKafkaAvroConverter` Avro converter is able to assume an IAM role in a different AWS account before accessing Glue Schema Registry. You can configure the role ARN and an optional session name.
+
+If `assumeRoleArn` is not provided, the converter will fallback to using the default credentials associated to the host.
+
+### Connector configuration
+
+Include these properties in your Kafka Connect worker or connector config:
+
+```properties
+# Define converter
+key.converter=com.amazonaws.services.schemaregistry.kafkaconnect.AWSKafkaAvroConverter
+value.converter=com.amazonaws.services.schemaregistry.kafkaconnect.AWSKafkaAvroConverter
+
+# Specify cross-account role arn
+key.converter.assumeRoleArn="arn:aws:iam::123456789012:role/my-role"
+value.converter.assumeRoleArn="arn:aws:iam::123456789012:role/my-role"
+
+# Override default session name (optional; default is "kafka-connect-session")
+key.converter.assumeRoleSessionName=my-custom-session
+value.converter.assumeRoleSessionName=my-custom-session
 ```
  
  ## Security issue notifications
