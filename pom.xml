@@ -88,7 +88,7 @@
         <mbknor.jsonschema.converter.version>1.0.39</mbknor.jsonschema.converter.version>
         <everit.json.schema.version>1.14.5</everit.json.schema.version>
         <classgraph.version>4.8.120</classgraph.version>
-        <commons.lang.version>3.8.1</commons.lang.version>
+        <commons.lang.version>3.18.0</commons.lang.version>
         <jackson.version>2.15.4</jackson.version>
         <!-- Protobuf -->
         <proto-plugin.version>0.6.1</proto-plugin.version>
