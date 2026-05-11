@@ -87,6 +87,11 @@
             <version>4.2.13.Final</version>
         </dependency>
         <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http2</artifactId>
+            <version>4.2.13.Final</version>
+        </dependency>
+        <dependency>
             <groupId>${parent.groupId}</groupId>
             <artifactId>schema-registry-build-tools</artifactId>
             <version>${parent.version}</version>
