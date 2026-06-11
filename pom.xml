@@ -133,6 +133,16 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
+            <!-- PRIV-242564: force ALL netty artifacts (incl. netty-handler pulled transitively by
+                 awssdk:glue) to 4.2.15.Final - clears netty-handler CVE-2026-44249/45416 that the
+                 per-artifact netty-codec pins in common/pom.xml did not cover. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.2.15.Final</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>glue</artifactId>
