@@ -80,6 +80,20 @@
         <dependency>
             <groupId>com.github.erosb</groupId>
             <artifactId>everit-json-schema</artifactId>
+            <exclusions>
+                <!-- everit -> commons-validator declares EOL commons-collections 3.2.2 but does
+                     not use it in bytecode; exclude it so it is not shaded into the converter jar.
+                     The converter's own code is migrated to commons-collections4 below. -->
+                <exclusion>
+                    <groupId>commons-collections</groupId>
+                    <artifactId>commons-collections</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

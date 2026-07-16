@@ -21,7 +21,7 @@ import com.amazonaws.services.schemaregistry.kafkaconnect.jsonschema.typeconvert
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.MapUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.kafka.common.cache.Cache;
 import org.apache.kafka.common.cache.LRUCache;
 import org.apache.kafka.common.cache.SynchronizedCache;
