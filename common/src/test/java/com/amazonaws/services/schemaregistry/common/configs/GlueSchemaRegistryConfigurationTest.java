@@ -27,13 +27,16 @@ import software.amazon.awssdk.services.glue.model.Compatibility;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -410,5 +413,390 @@ public class GlueSchemaRegistryConfigurationTest {
         props.put(AWSSchemaRegistryConstants.PROXY_URL, "http:// proxy.url: 8080");
         Exception exception = assertThrows(AWSSchemaRegistryException.class, () -> new GlueSchemaRegistryConfiguration(props));
         assertEquals("Proxy URL property is not a valid URL: "+proxy, exception.getMessage());
+    }
+
+    /**
+     * Tests that JSON class name resolution defaults to disabled (secure default) when not configured.
+     */
+    @Test
+    public void testJsonClassNameResolution_withoutConfig_defaultsToDisabled() {
+        Properties props = createTestProperties();
+        GlueSchemaRegistryConfiguration glueSchemaRegistryConfiguration = new GlueSchemaRegistryConfiguration(props);
+
+        assertFalse(glueSchemaRegistryConfiguration.isJsonClassNameResolutionEnabled());
+    }
+
+    /**
+     * Tests that customers can opt in to JSON class name resolution.
+     */
+    @Test
+    public void testJsonClassNameResolution_setToTrue_isEnabled() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_RESOLUTION_ENABLED, "true");
+        GlueSchemaRegistryConfiguration glueSchemaRegistryConfiguration = new GlueSchemaRegistryConfiguration(props);
+
+        assertTrue(glueSchemaRegistryConfiguration.isJsonClassNameResolutionEnabled());
+    }
+
+    /**
+     * Tests that JSON class name resolution can be explicitly disabled.
+     */
+    @Test
+    public void testJsonClassNameResolution_setToFalse_isDisabled() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_RESOLUTION_ENABLED, "false");
+        GlueSchemaRegistryConfiguration glueSchemaRegistryConfiguration = new GlueSchemaRegistryConfiguration(props);
+
+        assertFalse(glueSchemaRegistryConfiguration.isJsonClassNameResolutionEnabled());
+    }
+
+    /**
+     * Tests that the JSON class name allowlist is parsed correctly from a comma-separated string.
+     */
+    @Test
+    public void testJsonClassNameAllowlist_commaSeparated_isParsedCorrectly() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_ALLOWLIST, "com.example.Foo, com.example.Bar");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertEquals(2, config.getJsonClassNameAllowlist().size());
+        assertTrue(config.getJsonClassNameAllowlist().contains("com.example.Foo"));
+        assertTrue(config.getJsonClassNameAllowlist().contains("com.example.Bar"));
+    }
+
+    /**
+     * Tests that the allowlist defaults to empty when not configured.
+     */
+    @Test
+    public void testJsonClassNameAllowlist_notConfigured_defaultsToEmpty() {
+        Properties props = createTestProperties();
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertNotNull(config.getJsonClassNameAllowlist());
+        assertTrue(config.getJsonClassNameAllowlist().isEmpty());
+    }
+
+    /**
+     * Tests that the allowlist handles a single class correctly.
+     */
+    @Test
+    public void testJsonClassNameAllowlist_singleClass_isParsedCorrectly() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_ALLOWLIST, "com.example.SingleClass");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertEquals(1, config.getJsonClassNameAllowlist().size());
+        assertTrue(config.getJsonClassNameAllowlist().contains("com.example.SingleClass"));
+    }
+
+    /**
+     * Tests that stray commas do not put an empty, never-matching entry into the allowlist.
+     */
+    @Test
+    public void testJsonClassNameAllowlist_strayCommas_areIgnored() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_ALLOWLIST,
+                  ",com.example.Foo,,com.example.Bar, ,");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertEquals(2, config.getJsonClassNameAllowlist().size());
+        assertTrue(config.getJsonClassNameAllowlist().contains("com.example.Foo"));
+        assertTrue(config.getJsonClassNameAllowlist().contains("com.example.Bar"));
+        assertFalse(config.getJsonClassNameAllowlist().contains(""));
+    }
+
+    /**
+     * Tests that an allowlist of only separators and whitespace leaves the default empty allowlist.
+     */
+    @Test
+    public void testJsonClassNameAllowlist_onlySeparators_defaultsToEmpty() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_ALLOWLIST, " , , ");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertTrue(config.getJsonClassNameAllowlist().isEmpty());
+    }
+
+    /**
+     * Tests that a value that is neither "true" nor "false" leaves resolution disabled, which is
+     * the safe direction for a security opt-in.
+     */
+    @Test
+    public void testJsonClassNameResolution_unrecognizedValue_isDisabled() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_RESOLUTION_ENABLED, "ture");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertFalse(config.isJsonClassNameResolutionEnabled());
+    }
+
+    /**
+     * Tests that the Protobuf allowlist defaults to empty when not configured.
+     */
+    @Test
+    public void testProtobufClassNameAllowlist_notConfigured_defaultsToEmpty() {
+        Properties props = createTestProperties();
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertNotNull(config.getProtobufClassNameAllowlist());
+        assertTrue(config.getProtobufClassNameAllowlist().isEmpty());
+    }
+
+    /**
+     * Tests that the Protobuf allowlist is parsed with the same entry syntax as the JSON one.
+     */
+    @Test
+    public void testProtobufClassNameAllowlist_commaSeparated_isParsedCorrectly() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.PROTOBUF_CLASS_NAME_ALLOWLIST,
+                  ",com.example.Foo, com.example.Bar, ,");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertEquals(2, config.getProtobufClassNameAllowlist().size());
+        assertTrue(config.getProtobufClassNameAllowlist().contains("com.example.Foo"));
+        assertTrue(config.getProtobufClassNameAllowlist().contains("com.example.Bar"));
+        assertFalse(config.getProtobufClassNameAllowlist().contains(""));
+    }
+
+    /**
+     * Tests that an unconfigured Protobuf allowlist permits any class, which is the opposite of
+     * the empty-means-deny-all rule for JSON. POJO-mode Protobuf has no safe fallback object to
+     * return, so deny-all by default would break every existing consumer rather than degrade it.
+     * The {@code Message} check in the decoder is what bounds an unconfigured consumer.
+     */
+    @Test
+    public void testIsProtobufClassNameAllowed_notConfigured_allowsAnyClass() {
+        Properties props = createTestProperties();
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertTrue(config.isProtobufClassNameAllowed("com.example.pojos.Car"));
+        assertTrue(config.isProtobufClassNameAllowed("anything.At.All"));
+    }
+
+    /**
+     * Tests that an exact Protobuf allowlist entry allows that class and nothing else.
+     */
+    @Test
+    public void testIsProtobufClassNameAllowed_exactEntry_matchesOnlyThatClass() {
+        GlueSchemaRegistryConfiguration config =
+                configWithProtobufAllowlist("com.example.pojos.Car");
+
+        assertTrue(config.isProtobufClassNameAllowed("com.example.pojos.Car"));
+        assertFalse(config.isProtobufClassNameAllowed("com.example.pojos.Truck"));
+        assertFalse(config.isProtobufClassNameAllowed(null));
+    }
+
+    /**
+     * Tests that a Protobuf package entry allows direct members only, including the nested
+     * classes that protoc generates with a {@code $} separator.
+     */
+    @Test
+    public void testIsProtobufClassNameAllowed_packageEntry_matchesDirectMembersOnly() {
+        GlueSchemaRegistryConfiguration config =
+                configWithProtobufAllowlist("com.example.pojos.*");
+
+        assertTrue(config.isProtobufClassNameAllowed("com.example.pojos.Car"));
+        assertTrue(config.isProtobufClassNameAllowed("com.example.pojos.Outer$Inner"));
+        assertFalse(config.isProtobufClassNameAllowed("com.example.pojos.nested.Car"));
+        assertFalse(config.isProtobufClassNameAllowed("com.example.pojosX.Car"));
+    }
+
+    /**
+     * Tests that a bare wildcard is rejected for Protobuf as it is for JSON, so the allowlist
+     * cannot be widened to every class on the classpath by a single character.
+     */
+    @Test
+    public void testProtobufClassNameAllowlist_bareWildcard_throwsException() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.PROTOBUF_CLASS_NAME_ALLOWLIST, "com.example.Foo,*");
+
+        AWSSchemaRegistryException ex = assertThrows(AWSSchemaRegistryException.class,
+                                                     () -> new GlueSchemaRegistryConfiguration(props));
+        assertTrue(ex.getMessage().contains(AWSSchemaRegistryConstants.PROTOBUF_CLASS_NAME_ALLOWLIST));
+    }
+
+    /**
+     * Tests that the two allowlists are independent, so configuring one data format does not
+     * silently change what the other permits.
+     */
+    @Test
+    public void testClassNameAllowlists_areIndependentPerDataFormat() {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.PROTOBUF_CLASS_NAME_ALLOWLIST, "com.example.ProtoOnly");
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(props);
+
+        assertTrue(config.isProtobufClassNameAllowed("com.example.ProtoOnly"));
+        assertTrue(config.getJsonClassNameAllowlist().isEmpty());
+        assertFalse(config.isClassNameAllowed("com.example.ProtoOnly"));
+    }
+
+    /**
+     * Builds a configuration whose allowlist is the given comma-separated value.
+     */
+    private GlueSchemaRegistryConfiguration configWithAllowlist(String allowlist) {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.JSON_CLASS_NAME_ALLOWLIST, allowlist);
+        return new GlueSchemaRegistryConfiguration(props);
+    }
+
+    /**
+     * Builds a configuration whose Protobuf allowlist is the given comma-separated value.
+     */
+    private GlueSchemaRegistryConfiguration configWithProtobufAllowlist(String allowlist) {
+        Properties props = createTestProperties();
+        props.put(AWSSchemaRegistryConstants.PROTOBUF_CLASS_NAME_ALLOWLIST, allowlist);
+        return new GlueSchemaRegistryConfiguration(props);
+    }
+
+    /**
+     * Tests that an exact allowlist entry allows that class and nothing else.
+     */
+    @Test
+    public void testIsClassNameAllowed_exactEntry_matchesOnlyThatClass() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.example.pojos.Car");
+
+        assertTrue(config.isClassNameAllowed("com.example.pojos.Car"));
+        assertFalse(config.isClassNameAllowed("com.example.pojos.Truck"));
+    }
+
+    /**
+     * Tests that a package entry allows classes directly in that package.
+     */
+    @Test
+    public void testIsClassNameAllowed_packageEntry_matchesDirectMembers() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.example.pojos.*");
+
+        assertTrue(config.isClassNameAllowed("com.example.pojos.Car"));
+        assertTrue(config.isClassNameAllowed("com.example.pojos.Truck"));
+    }
+
+    /**
+     * Tests that a package entry does not reach into sub-packages. A nested package is a
+     * separate decision from the one the operator made.
+     */
+    @Test
+    public void testIsClassNameAllowed_packageEntry_doesNotMatchSubPackages() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.example.pojos.*");
+
+        assertFalse(config.isClassNameAllowed("com.example.pojos.nested.Car"));
+    }
+
+    /**
+     * Tests that the trailing dot is part of the prefix, so a package entry cannot match a
+     * sibling package that merely starts with the same characters.
+     */
+    @Test
+    public void testIsClassNameAllowed_packageEntry_doesNotMatchPrefixSiblingPackage() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.example.pojos.*");
+
+        assertFalse(config.isClassNameAllowed("com.example.pojosX.Car"));
+        assertFalse(config.isClassNameAllowed("com.example.pojos"));
+    }
+
+    /**
+     * Tests that a nested class of an allowed package matches, since it is declared inside a
+     * class the entry already allows.
+     */
+    @Test
+    public void testIsClassNameAllowed_packageEntry_matchesNestedClass() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.example.pojos.*");
+
+        assertTrue(config.isClassNameAllowed("com.example.pojos.Car$Engine"));
+    }
+
+    /**
+     * Tests that entries are matched literally rather than as regular expressions, so regex
+     * metacharacters in an entry do not widen what it matches.
+     */
+    @Test
+    public void testIsClassNameAllowed_entryIsNotTreatedAsRegex() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.example.pojos.Ca.");
+
+        assertFalse(config.isClassNameAllowed("com.example.pojos.Car"));
+    }
+
+    /**
+     * Tests that exact and package entries coexist in one allowlist.
+     */
+    @Test
+    public void testIsClassNameAllowed_mixedEntries_bothKindsMatch() {
+        GlueSchemaRegistryConfiguration config =
+                configWithAllowlist("com.example.Legacy, com.example.pojos.*");
+
+        assertTrue(config.isClassNameAllowed("com.example.Legacy"));
+        assertTrue(config.isClassNameAllowed("com.example.pojos.Car"));
+        assertFalse(config.isClassNameAllowed("com.example.other.Car"));
+    }
+
+    /**
+     * Tests that the default empty allowlist permits nothing, and that a null class name is
+     * rejected rather than throwing.
+     */
+    @Test
+    public void testIsClassNameAllowed_emptyAllowlistAndNull_areRejected() {
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(createTestProperties());
+
+        assertFalse(config.isClassNameAllowed("com.example.pojos.Car"));
+        assertFalse(config.isClassNameAllowed(null));
+    }
+
+    /**
+     * Tests that a bare wildcard is rejected. Allowing every class on the classpath is the
+     * behavior the allowlist exists to prevent, so it must not be reachable in one character.
+     */
+    @Test
+    public void testJsonClassNameAllowlist_bareWildcard_throwsException() {
+        assertThrows(AWSSchemaRegistryException.class, () -> configWithAllowlist("*"));
+        assertThrows(AWSSchemaRegistryException.class, () -> configWithAllowlist(".*"));
+        assertThrows(AWSSchemaRegistryException.class,
+                     () -> configWithAllowlist("com.example.pojos.Car,*"));
+        // Whitespace must not smuggle a bare wildcard past the check.
+        assertThrows(AWSSchemaRegistryException.class, () -> configWithAllowlist(" * "));
+        assertThrows(AWSSchemaRegistryException.class, () -> configWithAllowlist("com.example.Car, .* "));
+    }
+
+    /**
+     * Tests that wildcard-looking entries which are not a bare wildcard match nothing rather than
+     * matching broadly. They are treated as literal class names, so they fail closed.
+     */
+    @Test
+    public void testIsClassNameAllowed_malformedWildcards_matchNothing() {
+        assertFalse(configWithAllowlist("**").isClassNameAllowed("com.example.Car"));
+        assertFalse(configWithAllowlist("com.example.*.Car").isClassNameAllowed("com.example.pojos.Car"));
+        assertFalse(configWithAllowlist("com.example*").isClassNameAllowed("com.example.Car"));
+        assertFalse(configWithAllowlist("com.example.pojos*").isClassNameAllowed("com.example.pojos.Car"));
+    }
+
+    /**
+     * Tests that even a top-level package entry stays narrow, since only direct members match.
+     * {@code "com.*"} therefore cannot stand in for a bare wildcard.
+     */
+    @Test
+    public void testIsClassNameAllowed_topLevelPackageEntry_staysNarrow() {
+        GlueSchemaRegistryConfiguration config = configWithAllowlist("com.*");
+
+        assertTrue(config.isClassNameAllowed("com.Car"));
+        assertFalse(config.isClassNameAllowed("com.example.Car"));
+        assertFalse(config.isClassNameAllowed("com.example.pojos.Car"));
+    }
+
+    /**
+     * Tests that a bare wildcard installed through the generated setter matches nothing. The
+     * parsing-time rejection does not cover this path, so the rule has to hold at the point of use
+     * as well.
+     */
+    @Test
+    public void testIsClassNameAllowed_bareWildcardViaSetter_matchesNothing() {
+        GlueSchemaRegistryConfiguration config = new GlueSchemaRegistryConfiguration(createTestProperties());
+
+        config.setJsonClassNameAllowlist(new HashSet<>(Arrays.asList("*")));
+        assertFalse(config.isClassNameAllowed("com.example.Car"));
+
+        config.setJsonClassNameAllowlist(new HashSet<>(Arrays.asList(".*")));
+        assertFalse(config.isClassNameAllowed("com.example.Car"));
+
+        // A scoped package entry set the same way still works, so the guard is not over-broad.
+        config.setJsonClassNameAllowlist(new HashSet<>(Arrays.asList("com.example.*")));
+        assertTrue(config.isClassNameAllowed("com.example.Car"));
     }
 }

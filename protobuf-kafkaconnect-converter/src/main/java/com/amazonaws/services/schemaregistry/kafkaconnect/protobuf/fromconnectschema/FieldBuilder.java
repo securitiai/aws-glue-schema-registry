@@ -89,8 +89,9 @@ public class FieldBuilder {
                 messageDescriptorProtoBuilder.addNestedType(buildMap(fieldSchema, mapEntryName,
                     fileDescriptorProtoBuilder, messageDescriptorProtoBuilder));
             } else if (Schema.Type.STRUCT.equals(fieldSchema.type())) {
-                if (fieldSchema.parameters().containsKey(PROTOBUF_TYPE)
-                        && fieldSchema.parameters().get(PROTOBUF_TYPE).equals(PROTOBUF_ONEOF_TYPE)) {
+                final Map<String, String> schemaParameters = fieldSchema.parameters();
+                if (schemaParameters != null
+                        && PROTOBUF_ONEOF_TYPE.equals(schemaParameters.get(PROTOBUF_TYPE))) {
                     buildOneof(fieldSchema, fieldName, tagNumber, fileDescriptorProtoBuilder,
                             messageDescriptorProtoBuilder, fieldBuilderMap);
                     continue;

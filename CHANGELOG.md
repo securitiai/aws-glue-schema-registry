@@ -99,3 +99,34 @@ GlueSchemaRegistryKafkaSerializer/GlueSchemaRegistryKafkaDeserializer.
 
 ## Release 1.1.25
 * Upgraded aws-sdk version to fix vulnerabilities
+
+## Release 1.1.26
+* Introduces multilang support for csharp clients
+
+## Release 1.1.27
+* Introduce lz4 shim and dependency upgrade to fix vulnerabilities
+* Updated local integration tests to make requests to local stack syncrounysly to correct for flakyness
+
+## Release 2.0.0
+* **Breaking change.** JSON deserializer no longer resolves the schema's `className` field into a POJO by default; it now returns `JsonDataWithSchema`. Consumers that relied on automatic POJO deserialization will fail on the cast. To restore the previous behavior, set **both** of the following:
+  * `jsonClassNameResolutionEnabled=true`
+  * `jsonClassNameAllowlist=<comma-separated fully qualified class names>`. Only classes on this list are instantiated. An entry ending in `.*` allows every class directly in that package, so `com.example.pojos.*` avoids listing each POJO. Entries are matched literally rather than as regular expressions, and a bare `*` is rejected. Setting `jsonClassNameResolutionEnabled` alone has no effect, since the allowlist defaults to empty; records whose `className` matches no entry deserialize to `JsonDataWithSchema` and log a WARN.
+* **Breaking change.** AWS SDK for Java v1 has been removed from the build. The unused `com.amazonaws:aws-java-sdk-sts` dependency is gone from `serializer-deserializer` and `multilang-schema-registry`, and the `aws.sdk.v1.version` property and `aws-java-sdk-kinesis` dependency management are gone from the parent POM. No published class referenced an SDK v1 type, so library behavior is unchanged, but consumers who were relying on `aws-java-sdk-sts` arriving transitively must now declare it themselves.
+* **Breaking change.** Scala 2.12 support has been dropped. `kafka.scala.version` moves from 2.12 to 2.13, so the library is built against the Scala 2.13 Kafka and `mbknor-jackson-jsonschema` artifacts (`kafka_2.13`, `mbknor-jackson-jsonschema_2.13`). Because a single set of artifacts is published and GSR's own coordinates carry no Scala suffix, consumers still on Scala 2.12 must migrate to 2.13; Scala 2.12 and 2.13 are not binary compatible. This aligns with Apache Kafka 4.0, which drops Scala 2.12.
+* **Breaking change.** The Kotlin toolchain has moved from 1.9.25 to 2.3.20. `kotlin-stdlib`, `kotlin-stdlib-jdk8`, `kotlin-reflect` and the two Kotlin scripting-compiler artifacts are declared at compile scope, so the version reaches consumers' compile classpaths, where the Kotlin compiler enforces the `Require-Kotlin-Version` manifest attribute. Consumers building with Kotlin 1.9.x should expect to upgrade their Kotlin compiler. Java-only consumers are unaffected, because `javac` ignores that attribute.
+* **Security fix.** Upgraded Apache Kafka dependencies from 3.6.1 to 3.9.2 to remediate [CVE-2026-35554](https://nvd.nist.gov/vuln/detail/CVE-2026-35554) (CVSS 8.7 High), a race condition in the Kafka producer buffer pool. This covers all five managed Kafka artifacts: `kafka_2.12`, `kafka-clients`, `kafka-streams`, `connect-api`, and `connect-json`. The serialization wire format is unchanged. `kafka-clients` is a compile-scope dependency, so consumers who pin Kafka 3.6.x themselves will need to resolve the resulting version conflict.
+* **Security fix.** Upgraded `square-wireschema` from 5.2.0 to 7.0.1 to remediate [CVE-2026-45799](https://github.com/advisories/GHSA-7xpr-hc2w-34m9) (CVSS 7.5 High), where Wire's `skipGroup()` did not validate negative varint lengths before calling `skip()`, letting a 10-byte payload crash any Wire-decoding service. Every Wire artifact on the dependency tree, including the transitive `wire-runtime` and `wire-runtime-jvm`, now resolves to 7.0.1, which is above the patched 6.3.0 floor.
+* **New feature.** The HTTP client used by `AWSSchemaRegistryClient` is now injectable. `GlueSchemaRegistryConfiguration` accepts an HTTP client builder, so consumers can supply their own AWS SDK HTTP client implementation instead of the default. The default remains `UrlConnectionHttpClient`, so existing configurations are unaffected. See the README for usage.
+* **Behavior change.** `@SneakyThrows` has been removed to fix a runtime `NoClassDefFoundError: lombok/Lombok`. Checked exceptions are now wrapped in `AWSSchemaRegistryException`, `UncheckedIOException`, or `DataException` depending on the module. Consumers catching specific exception types around serialization or deserialization may need to adjust their catch blocks.
+* **Fix.** Removed the compile-scope `kotlinx-serialization-core-jvm` declaration, which resolves the long-standing build failure for consumers on older Kotlin compilers. It was never referenced by GSR source and is needed only at runtime, but compile scope placed its `Require-Kotlin-Version` constraint on every consumer's compile classpath. Also upgraded `okio` and `okio-fakefilesystem` to 3.18.2, which had disagreed with each other at 3.4.0 and 3.2.0.
+* **Fix.** The Protobuf Kafka Connect converter no longer throws a `NullPointerException` for STRUCT fields whose schema has no Protobuf metadata, on both the schema conversion and data conversion paths. Note the remaining limitation: a STRUCT built with `SchemaBuilder.struct()` and no `.name(...)` still throws, because the unnamed case is not yet handled.
+
+## Release 2.0.1
+* **Security fix.** Upgraded Jackson to 2.22.3 to remediate [CVE-2025-52999](https://nvd.nist.gov/vuln/detail/CVE-2025-52999).
+* **Security fix.** Upgraded Netty to 4.1.138.Final to remediate [CVE-2026-33870](https://nvd.nist.gov/vuln/detail/CVE-2026-33870).
+
+## Release 2.0.2
+* **Security fix.** Pinned `scala-library` to 2.13.18 to remediate [CVE-2022-36944](https://nvd.nist.gov/vuln/detail/CVE-2022-36944). It arrives transitively through `mbknor-jackson-jsonschema`, which asks for 2.13.1, and is bundled in the Kafka Connect converter jars.
+* **Security fix.** Upgraded Jackson to 2.22.4 to remediate [CVE-2026-110879](https://nvd.nist.gov/vuln/detail/CVE-2026-110879).
+* **Fix.** `schema-registry-serde` and `schema-registry-common` now declare `scala-library` and Jackson directly, so applications that depend on them resolve the fixed versions without pinning them.
+* **Fix.** Removed a duplicate `protobuf-java` declaration from the `schema-registry-serde` POM, which Maven 3.10 rejects.
