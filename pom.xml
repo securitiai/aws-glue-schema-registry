@@ -21,7 +21,7 @@
 
     <groupId>software.amazon.glue</groupId>
     <artifactId>schema-registry-parent</artifactId>
-    <version>1.1.25</version>
+    <version>2.0.2</version>
     <packaging>pom</packaging>
     <name>AWS Glue Schema Registry Library</name>
     <description>The AWS Glue Schema Registry Library for Java enables Java developers to easily integrate their
@@ -52,14 +52,14 @@
         <url>https://github.com/awslabs/aws-glue-schema-registry.git</url>
     </scm>
     <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://aws.oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://aws.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
+    <snapshotRepository>
+        <id>central</id>
+        <url>https://ossrh-staging-api.central.sonatype.com/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+        <id>central</id>
+        <url>https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/</url>
+    </repository>
     </distributionManagement>
 
     <modules>
@@ -70,6 +70,7 @@
         <module>kafkastreams-serde</module>
         <module>avro-kafkaconnect-converter</module>
         <module>avro-flink-serde</module>
+        <module>multilang-schema-registry</module>
         <module>examples</module>
         <module>integration-tests</module>
         <module>jsonschema-kafkaconnect-converter</module>
@@ -81,31 +82,40 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <glue.schema.registry.groupId>software.amazon.glue</glue.schema.registry.groupId>
         <aws.sdk.v2.version>2.33.0</aws.sdk.v2.version>
-        <aws.sdk.v1.version>1.12.660</aws.sdk.v1.version>
-        <kafka.scala.version>2.12</kafka.scala.version>
-        <kafka.version>3.6.1</kafka.version>
+        <!-- Netty arrives transitively via awssdk netty-nio-client and zookeeper. PRIV-242564: force ALL netty
+             artifacts (incl. netty-handler pulled transitively by awssdk:glue) to 4.2.15.Final - clears
+             netty-handler CVE-2026-44249/45416 and supersedes upstream's 4.1.138.Final pin. -->
+        <netty.version>4.2.15.Final</netty.version>
+        <kafka.scala.version>2.13</kafka.scala.version>
+        <kafka.version>3.9.2</kafka.version>
         <avro.version>1.11.4</avro.version>
         <mbknor.jsonschema.converter.version>1.0.39</mbknor.jsonschema.converter.version>
+        <!-- scala-library arrives transitively via mbknor-jackson-jsonschema, which pins 2.13.1. Pinned ahead
+             of it to remediate CVE-2022-36944; 2.13.x releases are binary compatible. -->
+        <scala.library.version>2.13.18</scala.library.version>
         <everit.json.schema.version>1.14.5</everit.json.schema.version>
         <classgraph.version>4.8.120</classgraph.version>
         <commons.lang.version>3.18.0</commons.lang.version>
-        <jackson.version>2.15.4</jackson.version>
+        <jackson.version>2.22.4</jackson.version>
         <!-- Protobuf -->
         <proto-plugin.version>0.6.1</proto-plugin.version>
 	<protobuf.version>3.25.5</protobuf.version>
-	<kotlin.version>1.9.25</kotlin.version>
-        <square-wireschema.version>5.2.0</square-wireschema.version>
+	<kotlin.version>2.3.20</kotlin.version>
+        <square-wireschema.version>7.0.1</square-wireschema.version>
         <apicurio-registry.version>2.1.3.Final</apicurio-registry.version>
         <slf4j.version>1.7.30</slf4j.version>
         <log4j.version>2.17.1</log4j.version>
         <jupiter.version>5.6.3</jupiter.version>
         <mockito.version>3.3.3</mockito.version>
-        <lombok.version>1.18.26</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
+        <mockito.version>3.6.28</mockito.version>
+        <lombok.utils.version>1.18.12</lombok.utils.version>
         <hamcrest.version>1.1</hamcrest.version>
         <!--  LATEST KCL Does not work with LocalStack yet, remove once new version works -->
         <kinesis.client.version>2.2.9</kinesis.client.version>
         <!--  LATEST KPL will cause integration test failure in Linux environment, update once we find a way to address the issue -->
         <kinesis.producer.version>0.15.8</kinesis.producer.version>
+        <junit4.version>4.13.2</junit4.version>
         <junit.platform.commons.version>1.6.2</junit.platform.commons.version>
         <junit.platform.surefire.version>1.3.2</junit.platform.surefire.version>
         <guava.version>32.0.0-jre</guava.version>
@@ -115,6 +125,7 @@
         <protobuf.java.version>3.25.5</protobuf.java.version>
         <localstack.utils>0.2.23</localstack.utils>
         <aws.msk.iam.auth>2.0.3</aws.msk.iam.auth>
+        <lz4.java.version>1.10.2</lz4.java.version>
     </properties>
 
     <dependencyManagement>
@@ -133,13 +144,10 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
-            <!-- PRIV-242564: force ALL netty artifacts (incl. netty-handler pulled transitively by
-                 awssdk:glue) to 4.2.15.Final - clears netty-handler CVE-2026-44249/45416 that the
-                 per-artifact netty-codec pins in common/pom.xml did not cover. -->
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.2.15.Final</version>
+                <version>${netty.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -152,16 +160,34 @@
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka_${kafka.scala.version}</artifactId>
                 <version>${kafka.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
                 <version>${kafka.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-streams</artifactId>
                 <version>${kafka.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.lz4</groupId>
+                        <artifactId>lz4-java</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>
@@ -185,11 +211,7 @@
                </exclusions>
             </dependency>
             <!-- Exclude commons-compress globally due to vulns -->
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-compress</artifactId>
-                <scope>provided</scope>
-            </dependency>
+
             <dependency>
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro-maven-plugin</artifactId>
@@ -256,6 +278,11 @@
                 <artifactId>mbknor-jackson-jsonschema_${kafka.scala.version}</artifactId>
                 <version>${mbknor.jsonschema.converter.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala.library.version}</version>
+            </dependency>
             <!-- Temporarily adding dependency on a transitive dependency to fix security bug in underlying library. Remove when dependency is upgraded. -->
             <dependency>
                 <groupId>io.github.classgraph</groupId>
@@ -266,11 +293,6 @@
                 <groupId>com.github.erosb</groupId>
                 <artifactId>everit-json-schema</artifactId>
                 <version>${everit.json.schema.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-kinesis</artifactId>
-                <version>${aws.sdk.v1.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -344,6 +366,12 @@
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
+                <artifactId>mockito-inline</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
                 <artifactId>mockito-junit-jupiter</artifactId>
                 <version>${mockito.version}</version>
                 <scope>test</scope>
@@ -358,6 +386,12 @@
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-surefire-provider</artifactId>
                 <version>${junit.platform.surefire.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>${junit4.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
@@ -375,6 +409,12 @@
                 <groupId>org.json</groupId>
                 <artifactId>json</artifactId>
                 <version>20231013</version>
+            </dependency>
+            <!-- Use secure at.yawk.lz4:lz4-java instead of vulnerable org.lz4:lz4-java -->
+            <dependency>
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${lz4.java.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -396,7 +436,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -446,7 +486,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.2.0</version>
                 <configuration>
-                    <excludePackageNames>*.avrodata, *.apicurio</excludePackageNames>
+                    <excludePackageNames>*.avrodata, *.apicurio, com.amazonaws.services.schemaregistry</excludePackageNames>
                     <source>8</source>
                 </configuration>
                 <executions>
@@ -461,7 +501,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.8</version>
+                <version>0.8.11</version>
                 <configuration>
                     <excludes>
                         <!-- Ignore exception classes -->
@@ -510,6 +550,7 @@
                                         <exclude>org.apache.avro</exclude>
                                         <exclude>metadata</exclude>
                                         <exclude>additionalTypes</exclude>
+                                        <exclude>default</exclude>
                                     </excludes>
                                 </rule>
                             </rules>
@@ -539,14 +580,12 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.8</version>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.7.0</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>sonatype-nexus-staging</serverId>
-                            <nexusUrl>https://aws.oss.sonatype.org</nexusUrl>
-                            <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                            <publishingServerId>central</publishingServerId>
                         </configuration>
                     </plugin>
                 </plugins>

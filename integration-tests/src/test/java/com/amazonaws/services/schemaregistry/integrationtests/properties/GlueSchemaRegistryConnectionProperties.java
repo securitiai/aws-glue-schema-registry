@@ -13,10 +13,23 @@
  * limitations under the License.
  */
 package com.amazonaws.services.schemaregistry.integrationtests.properties;
-import com.amazonaws.regions.Regions;
+
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.ServiceMetadata;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 
 public interface GlueSchemaRegistryConnectionProperties {
-    // Glue Service Endpoint
-    String REGION = Regions.getCurrentRegion() == null ? "us-east-2" : Regions.getCurrentRegion().getName().toLowerCase();
-    String ENDPOINT = String.format("https://glue.%s.amazonaws.com", REGION);
+    // Glue Service Endpoint. Derive the host from the region's partition so non-standard
+    // partitions (e.g. cn-north-1, us-gov-west-1) resolve to the correct endpoint suffix.
+    String REGION = resolveRegion();
+    String ENDPOINT = "https://" + ServiceMetadata.of("glue").endpointFor(Region.of(REGION));
+
+    static String resolveRegion() {
+        try {
+            return new DefaultAwsRegionProviderChain().getRegion().id();
+        } catch (SdkClientException e) {
+            return "us-east-2";
+        }
+    }
 }

@@ -173,6 +173,76 @@ public final class AWSSchemaRegistryConstants {
     public static final String USER_AGENT_APP = "userAgentApp";
 
     /**
+     * Controls whether the JSON deserializer resolves the target class from the
+     * {@code className} field embedded in the schema and deserializes into that
+     * POJO via reflection. Defaults to {@code false} so that untrusted schemas
+     * cannot drive instantiation of arbitrary classes; the deserializer returns
+     * a {@code JsonDataWithSchema} regardless of the presence of
+     * {@code className}.
+     * <p>
+     * Setting this to {@code true} is necessary but not sufficient to restore the
+     * legacy POJO behavior: each target class must also be listed in
+     * {@link #JSON_CLASS_NAME_ALLOWLIST}. With this enabled and the allowlist empty,
+     * every record still deserializes to {@code JsonDataWithSchema}.
+     *
+     * @see #JSON_CLASS_NAME_ALLOWLIST
+     */
+    public static final String JSON_CLASS_NAME_RESOLUTION_ENABLED = "jsonClassNameResolutionEnabled";
+
+    /**
+     * Comma-separated list of fully qualified class names that the JSON deserializer is
+     * permitted to instantiate when {@link #JSON_CLASS_NAME_RESOLUTION_ENABLED} is
+     * {@code true}. Surrounding whitespace around each entry is ignored, so
+     * {@code "com.example.Foo, com.example.Bar"} is equivalent to
+     * {@code "com.example.Foo,com.example.Bar"}.
+     * <p>
+     * An entry ending in {@code ".*"} allows every class directly under that package,
+     * so {@code "com.example.pojos.*"} matches {@code com.example.pojos.Car} but not
+     * {@code com.example.pojos.nested.Car} and not {@code com.example.pojosX.Car}. The
+     * match is a literal prefix test, not a regular expression; {@code *} is only
+     * meaningful as a trailing {@code ".*"} and is literal anywhere else. A bare
+     * {@code "*"} is rejected, since allowing every class on the classpath is the
+     * behavior this allowlist exists to prevent.
+     * <p>
+     * Prefer naming classes explicitly. A package entry also allows any class added to
+     * that package later, which is a decision made once here rather than reviewed at the
+     * point the class appears.
+     * <p>
+     * Defaults to empty, meaning no class is resolved. A schema whose {@code className}
+     * matches no entry deserializes to {@code JsonDataWithSchema} and the mismatch is
+     * logged at WARN level. Listing only the classes actually expected on the topic keeps
+     * an untrusted schema from selecting an unintended target type.
+     *
+     * @see #JSON_CLASS_NAME_RESOLUTION_ENABLED
+     */
+    public static final String JSON_CLASS_NAME_ALLOWLIST = "jsonClassNameAllowlist";
+
+    /**
+     * Comma-separated list of fully qualified class names that the Protobuf deserializer is
+     * permitted to instantiate when {@link #PROTOBUF_MESSAGE_TYPE} is {@code POJO}. Entry
+     * syntax matches {@link #JSON_CLASS_NAME_ALLOWLIST}: surrounding whitespace is ignored,
+     * an entry ending in {@code ".*"} allows every class directly under that package, the
+     * match is a literal prefix test rather than a regular expression, and a bare {@code "*"}
+     * is rejected.
+     * <p>
+     * Defaults to empty, which does <em>not</em> mean "deny every class". It means no
+     * restriction beyond the unconditional check that the resolved class is a
+     * {@code com.google.protobuf.Message}. This inverts the meaning of an empty
+     * {@link #JSON_CLASS_NAME_ALLOWLIST} deliberately: the JSON deserializer has a safe
+     * fallback to return in {@code JsonDataWithSchema}, whereas POJO-mode Protobuf has no
+     * fallback object, so defaulting to deny-all would break every existing consumer.
+     * <p>
+     * Set this when a topic carries a known, fixed set of message types. The {@code Message}
+     * check alone stops a schema from naming an arbitrary class on the classpath, but it
+     * cannot stop a schema from naming a <em>different</em> generated message type than the
+     * one the application expects. An allowlist is the only control for that case.
+     *
+     * @see #PROTOBUF_MESSAGE_TYPE
+     * @see #JSON_CLASS_NAME_ALLOWLIST
+     */
+    public static final String PROTOBUF_CLASS_NAME_ALLOWLIST = "protobufClassNameAllowlist";
+
+    /**
      * IAM Role ARN to assume for accessing the registry
      */
     public static final String ASSUME_ROLE_ARN = "assumeRoleArn";
